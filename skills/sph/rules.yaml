@@ -1,0 +1,61 @@
+# Smoothed Particle Hydrodynamics Rules
+# Constraints for SPH simulations (DualSPHysics, SPHinXsys, etc.)
+
+kernel_selection:
+  description: "Smoothing kernel selection"
+  rules:
+    - condition: "general purpose"
+      kernel: cubic-spline
+      note: "Cubic B-spline, most widely used"
+    - condition: "tensile instability prevention"
+      kernel: Wendland-C2
+      note: "Wendland quintic, better stability properties"
+    - condition: "high accuracy"
+      kernel: quintic-spline
+      note: "Higher order, smoother, more expensive"
+
+particle_spacing:
+  rules:
+    - "Initial particle spacing dp must resolve smallest flow feature"
+    - "Smoothing length h = 1.2 * dp (standard) or h = 2.0 * dp (for stability)"
+    - "Neighbor count: ~21 in 2D (h/dp=1.2), ~56 in 3D"
+    - "Free-surface problems: use dp <= wave_height / 10"
+
+time_integration:
+  rules:
+    - "CFL condition: dt < 0.25 * h / (c_s + |v_max|)"
+    - "Viscous condition: dt < 0.125 * h^2 / nu"
+    - "Body force condition: dt < 0.25 * sqrt(h / |g|)"
+    - "Use the minimum of all three conditions"
+    - "Symplectic (Verlet) for general use; Runge-Kutta 4 for accuracy"
+
+equation_of_state:
+  weakly_compressible:
+    formula: "Tait equation: p = B * ((rho/rho_0)^gamma - 1)"
+    speed_of_sound: "c_0 >= 10 * v_max (keeps density variation < 1%)"
+    gamma: 7
+    note: "Standard for free-surface water flows"
+
+boundary_handling:
+  rules:
+    - type: solid-wall
+      method: "Dynamic boundary particles (DualSPHysics default) or repulsive force"
+    - type: inlet
+      method: "Buffer zone with imposed velocity"
+    - type: outlet
+      method: "Buffer zone with imposed pressure"
+    - type: floating-body
+      method: "Rigid body with coupled SPH forces"
+
+constraints:
+  - "Always check total particle count vs. available GPU memory (DualSPHysics)"
+  - "Density re-initialization (Shepard filter) every 20-40 steps for long simulations"
+  - "Delta-SPH correction for reducing pressure noise"
+  - "Shifting algorithm for particle regularity in internal flows"
+  - "Never use SPH for steady-state — it's inherently transient"
+
+validation:
+  - "Dam break: compare with Koshizuka & Oka (1996) or Martin & Moyce (1952)"
+  - "Sloshing: compare with Lugni et al. (2006)"
+  - "Wave propagation: compare with Stokes analytical solution"
+  - "Report particle count, dp, h/dp ratio, and c_0/v_max ratio"

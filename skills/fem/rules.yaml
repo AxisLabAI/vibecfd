@@ -1,0 +1,42 @@
+# Finite Element Method Rules
+# Constraints for FEM-based CFD (FEniCS, deal.II, etc.)
+
+element_selection:
+  description: "Finite element type selection"
+  rules:
+    - condition: "Stokes / incompressible Navier-Stokes"
+      velocity: "P2 (quadratic Lagrange)"
+      pressure: "P1 (linear Lagrange)"
+      note: "Taylor-Hood P2-P1 satisfies inf-sup (LBB) condition"
+    - condition: "stabilized equal-order"
+      velocity: "P1"
+      pressure: "P1"
+      stabilization: "SUPG/PSPG or VMS"
+      note: "Requires stabilization to avoid pressure oscillations"
+    - condition: "high-order accuracy"
+      velocity: "P3+"
+      pressure: "P2+"
+      note: "Higher cost but exponential convergence for smooth problems"
+
+stabilization:
+  rules:
+    - "Equal-order elements MUST use stabilization (SUPG, PSPG, GLS, or VMS)"
+    - "Taylor-Hood (P2-P1) does NOT need stabilization"
+    - "For convection-dominated flows (Pe > 1): add SUPG streamline diffusion"
+    - "Stabilization parameter: tau = h / (2 * |u|) for SUPG"
+
+solver_strategy:
+  rules:
+    - condition: "steady Stokes"
+      method: "Direct solver (MUMPS/LU) for small problems; iterative (GMRES+AMG) for large"
+    - condition: "transient Navier-Stokes"
+      method: "IPCS (Incremental Pressure Correction Scheme) or Chorin projection"
+    - condition: "nonlinear steady"
+      method: "Newton-Raphson with line search"
+
+constraints:
+  - "Always verify inf-sup stability for chosen element pair"
+  - "Mesh must be shape-regular (no degenerate elements)"
+  - "For h-refinement: use a posteriori error estimators"
+  - "Report DOF count and solver iterations"
+  - "Verify conservation: check divergence-free condition for velocity"

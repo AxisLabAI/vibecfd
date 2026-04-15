@@ -1,0 +1,123 @@
+# OpenFOAM Solver Rules
+# These rules constrain AI agent behavior when setting up and running OpenFOAM cases.
+
+solver_selection:
+  description: "Rules for selecting the appropriate OpenFOAM solver"
+  rules:
+    - condition: "incompressible + steady-state + laminar"
+      solver: simpleFoam
+      note: "Use SIMPLE algorithm for steady incompressible flows"
+    - condition: "incompressible + transient + laminar"
+      solver: icoFoam
+      note: "Use PISO for transient incompressible laminar flows"
+    - condition: "incompressible + transient + turbulent"
+      solver: pimpleFoam
+      note: "PIMPLE allows larger timesteps than PISO"
+    - condition: "incompressible + steady-state + turbulent"
+      solver: simpleFoam
+      note: "SIMPLE with turbulence model"
+    - condition: "compressible + transient"
+      solver: rhoPimpleFoam
+      note: "Compressible PIMPLE solver"
+    - condition: "compressible + steady-state"
+      solver: rhoSimpleFoam
+      note: "Compressible SIMPLE solver"
+    - condition: "multiphase + VOF"
+      solver: interFoam
+      note: "Volume of Fluid for two-phase flows"
+    - condition: "multiphase + VOF + dynamic-mesh"
+      solver: interDyMFoam
+      note: "VOF with dynamic mesh refinement"
+    - condition: "heat-transfer + buoyancy"
+      solver: buoyantPimpleFoam
+      note: "Buoyancy-driven flows with heat transfer"
+    - condition: "combustion + premixed"
+      solver: XiFoam
+      note: "Premixed turbulent combustion"
+    - condition: "combustion + non-premixed"
+      solver: reactingFoam
+      note: "Non-premixed combustion with species transport"
+
+turbulence_models:
+  description: "Turbulence model selection guidelines"
+  rules:
+    - condition: "Re < 2300"
+      model: laminar
+      note: "Below critical Reynolds number"
+    - condition: "general RANS + wall-bounded"
+      model: kOmegaSST
+      note: "Default choice for most industrial applications"
+    - condition: "free-shear flows"
+      model: kEpsilon
+      note: "Standard k-epsilon for jets, wakes, mixing layers"
+    - condition: "transitional flow"
+      model: kOmegaSSTLM
+      note: "Langtry-Menter transition model"
+    - condition: "LES required"
+      model: WALE
+      note: "Wall-Adapting Local Eddy-viscosity for LES"
+    - condition: "DES hybrid"
+      model: SpalartAllmarasDES
+      note: "Detached Eddy Simulation"
+
+boundary_conditions:
+  description: "Boundary condition validation rules"
+  constraints:
+    - type: inlet
+      velocity: "Must specify either fixedValue, flowRateInletVelocity, or turbulentInlet"
+      pressure: "zeroGradient for incompressible; totalPressure for compressible"
+      turbulence: "Must specify k and omega/epsilon at inlet based on turbulence intensity"
+    - type: outlet
+      velocity: "zeroGradient or inletOutlet (prevents backflow)"
+      pressure: "fixedValue 0 for incompressible; waveTransmissive for compressible"
+    - type: wall
+      velocity: "noSlip (default) or movingWallVelocity"
+      pressure: "zeroGradient"
+      turbulence: "nutUSpaldingWallFunction for high-Re; nutLowReWallFunction for low-Re"
+    - type: symmetry
+      all_fields: "symmetry or symmetryPlane"
+
+numerical_schemes:
+  description: "Numerical scheme rules"
+  defaults:
+    ddtSchemes: "Euler (first-order, stable) or backward (second-order)"
+    gradSchemes: "Gauss linear (second-order accurate)"
+    divSchemes:
+      default: "Gauss linearUpwind grad(U) for RANS"
+      bounded: "Use bounded schemes for turbulence quantities"
+      les: "Gauss linear for LES (central differencing)"
+    laplacianSchemes: "Gauss linear corrected"
+    interpolationSchemes: "linear"
+    snGradSchemes: "corrected (for non-orthogonal meshes)"
+  constraints:
+    - "Never use upwind for LES — causes excessive numerical diffusion"
+    - "Always use bounded Gauss upwind for k, epsilon, omega to prevent negative values"
+    - "For CFL > 0.5 with PISO, switch to PIMPLE with nOuterCorrectors"
+    - "Non-orthogonal correctors >= 1 for meshes with non-orthogonality > 40°"
+
+convergence_criteria:
+  steady_state:
+    residuals: 1.0e-5
+    note: "All field residuals must drop below this threshold"
+  transient:
+    cfl_max: 1.0
+    cfl_mean_target: 0.5
+    note: "Monitor CFL with maxCo and meanCoNum in controlDict"
+  checks:
+    - "Continuity error must be < 1e-6"
+    - "Monitor mass flow rate at inlet/outlet for conservation"
+    - "Check y+ values at walls match turbulence model requirements"
+
+mesh_quality:
+  description: "Mesh quality requirements for OpenFOAM"
+  thresholds:
+    max_non_orthogonality: 70
+    max_skewness: 4.0
+    max_aspect_ratio: 100
+    min_volume: 1.0e-15
+  rules:
+    - "Run checkMesh before every simulation"
+    - "Fix severe non-orthogonality (>70°) before running — solver will diverge"
+    - "Boundary layer mesh: first cell y+ < 1 for low-Re models, 30 < y+ < 300 for wall functions"
+    - "Mesh independence study: run at least 3 refinement levels (coarse, medium, fine)"
+    - "GCI (Grid Convergence Index) must be reported for publications"

@@ -1,0 +1,56 @@
+# Post-Processing Rules
+# Constraints for visualization and result extraction
+
+visualization:
+  tools:
+    primary: ParaView
+    scripting: pvpython
+    plots: "matplotlib or gnuplot"
+  rules:
+    - "Use consistent color maps: 'coolwarm' for diverging, 'viridis' for sequential"
+    - "Never use 'jet' color map — perceptually non-uniform"
+    - "Include scale bar, axis labels, and units on every figure"
+    - "Export figures at 300 DPI minimum for publication"
+    - "Vector plots: use streamlines or glyphs, not raw arrows at every cell"
+
+contour_plots:
+  rules:
+    - "Velocity magnitude: use 20+ contour levels"
+    - "Pressure coefficient: normalize by dynamic pressure"
+    - "Temperature: use absolute or normalized (T-T_min)/(T_max-T_min)"
+    - "Always show mesh outline or domain boundaries"
+
+line_plots:
+  rules:
+    - "Include error bars or uncertainty bands where applicable"
+    - "Compare with benchmark data using markers (symbols) vs. lines (simulation)"
+    - "Use consistent line styles across figures"
+    - "Label axes with quantity name, symbol, and units: e.g., 'Velocity, u (m/s)'"
+
+validation_plots:
+  mandatory:
+    - "Residual convergence history"
+    - "Comparison with experimental/benchmark data"
+    - "Mesh independence study results"
+  optional:
+    - "y+ distribution on walls"
+    - "Mass/energy conservation over time"
+    - "CFL number distribution"
+
+data_extraction:
+  openfoam:
+    - "Use postProcess -func 'patchAverage(name=outlet, p)' for surface averages"
+    - "Use sample utility or postProcess for line/plane data"
+    - "foamToVTK for ParaView compatibility"
+  formats:
+    - "Raw data: CSV with headers"
+    - "Figures: PDF (vector) for line plots, PNG (raster) for contours"
+    - "Animations: MP4 (H.264) or GIF for web"
+
+latex_integration:
+  rules:
+    - "Use pgfplots for line plots embedded in LaTeX"
+    - "Use includegraphics for contour/3D plots"
+    - "Figure width: \\columnwidth for single-column, \\textwidth for full-width"
+    - "Use subcaption package for multi-panel figures"
+    - "Every figure must have a descriptive caption"

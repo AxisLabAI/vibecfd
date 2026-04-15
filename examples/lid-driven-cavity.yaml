@@ -1,0 +1,65 @@
+# VibeCFD Example: Lid-Driven Cavity Flow
+# Classic benchmark case for code validation
+
+problem:
+  name: "Lid-Driven Cavity"
+  description: "2D square cavity with moving top wall"
+  type: incompressible
+  regime: laminar
+  reference: "Ghia et al. (1982), Journal of Computational Physics, 48(3), 387-411"
+
+geometry:
+  type: box
+  dimensions: [1.0, 1.0, 0.01]  # 2D case (thin z-direction)
+  units: m
+
+flow_conditions:
+  reynolds_number: 1000
+  reference_velocity: 1.0  # m/s (top wall)
+  reference_length: 1.0    # m (cavity side)
+  kinematic_viscosity: 1.0e-3  # m^2/s (derived from Re)
+  density: 1.0  # kg/m^3
+
+solver:
+  name: icoFoam
+  type: transient
+  turbulence: laminar
+  end_time: 50.0  # s (enough for steady-state)
+  timestep: 0.005
+  write_interval: 5.0
+
+mesh:
+  type: blockMesh
+  cells: [128, 128, 1]
+  grading: uniform
+  refinement_levels: [64, 128, 256]  # for mesh independence study
+
+boundary_conditions:
+  top:
+    type: movingWall
+    velocity: [1.0, 0, 0]
+  bottom:
+    type: fixedWall
+  left:
+    type: fixedWall
+  right:
+    type: fixedWall
+  frontAndBack:
+    type: empty
+
+validation:
+  data_source: "Ghia et al. (1982)"
+  compare:
+    - quantity: "u-velocity along vertical centerline (x=0.5)"
+      tolerance: 0.02  # 2% max deviation
+    - quantity: "v-velocity along horizontal centerline (y=0.5)"
+      tolerance: 0.02
+
+export:
+  format: latex
+  template: templates/latex/report.tex
+  figures:
+    - velocity_contour
+    - streamlines
+    - centerline_profiles
+    - convergence_history

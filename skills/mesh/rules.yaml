@@ -1,0 +1,59 @@
+# Mesh Generation Rules
+# Constraints for Gmsh, blockMesh, snappyHexMesh, cfMesh
+
+general:
+  mandatory_checks:
+    - "Run mesh quality check before every simulation"
+    - "Mesh independence study with at least 3 levels (refinement ratio ~1.3-1.5)"
+    - "Report GCI (Grid Convergence Index) for publications"
+    - "First cell height must match turbulence model y+ requirements"
+
+y_plus_guidelines:
+  low_re_models:
+    target: "y+ < 1"
+    models: ["kOmegaSST (low-Re)", "Spalart-Allmaras", "LES"]
+    note: "Resolve viscous sublayer — need boundary layer mesh"
+  wall_functions:
+    target: "30 < y+ < 300"
+    models: ["kOmegaSST (wall function)", "kEpsilon (standard)"]
+    note: "First cell in log-law region"
+
+first_cell_height:
+  formula: "y = y+ * nu / u_tau"
+  estimation: "u_tau ≈ sqrt(0.5 * Cf * U_inf^2), Cf ≈ 0.058 * Re^(-0.2)"
+  growth_ratio: "1.1 - 1.3 for boundary layer growth"
+  min_layers: 10
+
+blockMesh:
+  rules:
+    - "Use for simple geometries only (boxes, cylinders, wedges)"
+    - "Grading ratio for boundary layers: simpleGrading or edgeGrading"
+    - "Always define patches explicitly — avoid defaultFaces"
+    - "2D cases: 1 cell in z-direction with empty patch type"
+
+snappyHexMesh:
+  rules:
+    - "Start with a blockMesh background grid"
+    - "refinementSurfaces: level (min max) based on feature size"
+    - "refinementRegions: distance-based refinement around geometry"
+    - "addLayers: nSurfaceLayers >= 5 for boundary layers"
+    - "Quality controls: maxNonOrtho 65, maxSkewness 3"
+    - "Run in parallel for large meshes: decomposePar + mpirun"
+
+gmsh:
+  rules:
+    - "Use .geo scripts for reproducibility (not GUI-only)"
+    - "Transfinite meshing for structured regions"
+    - "Characteristic length lc = feature_size / 10 as starting point"
+    - "Export as .msh format, convert with gmshToFoam for OpenFOAM"
+    - "Use Physical groups to define boundary patches"
+
+quality_thresholds:
+  openfoam:
+    max_non_orthogonality: 70
+    max_skewness: 4
+    max_aspect_ratio: 1000
+  general:
+    min_angle: 10
+    max_angle: 170
+    volume_ratio: "< 100 between adjacent cells"

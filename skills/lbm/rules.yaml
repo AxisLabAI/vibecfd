@@ -1,0 +1,60 @@
+# Lattice Boltzmann Method Rules
+# Constraints for LBM simulations (Palabos, OpenLB, etc.)
+
+lattice_selection:
+  description: "Lattice model selection"
+  rules:
+    - condition: "2D incompressible"
+      lattice: D2Q9
+      note: "Standard 2D lattice with 9 velocities"
+    - condition: "3D incompressible"
+      lattice: D3Q19
+      note: "Good balance of accuracy and cost"
+    - condition: "3D high accuracy"
+      lattice: D3Q27
+      note: "Most isotropic 3D lattice, higher cost"
+    - condition: "thermal flows"
+      lattice: "D2Q9 + D2Q5 (double distribution)"
+      note: "Separate distributions for momentum and energy"
+
+collision_operators:
+  description: "Collision operator selection"
+  rules:
+    - condition: "general purpose"
+      operator: BGK
+      note: "Single relaxation time — simplest, most common"
+    - condition: "stability at high Re"
+      operator: MRT
+      note: "Multiple Relaxation Time — better stability"
+    - condition: "improved accuracy"
+      operator: "regularized BGK"
+      note: "Better behavior at boundaries"
+    - condition: "multiphase"
+      operator: "Shan-Chen or free-energy"
+      note: "Pseudopotential or thermodynamic approach"
+
+constraints:
+  mach_number:
+    max: 0.3
+    note: "LBM is weakly compressible — keep Ma < 0.3 for incompressible flows"
+  relaxation_time:
+    min: 0.5001
+    note: "tau must be > 0.5 for stability; tau close to 0.5 means high Re"
+  resolution:
+    min_points_per_feature: 10
+    note: "At least 10 lattice points across smallest flow feature"
+  boundary_conditions:
+    - type: no-slip
+      method: "bounce-back (halfway) or Bouzidi interpolation"
+    - type: velocity-inlet
+      method: "Zou-He or regularized"
+    - type: pressure-outlet
+      method: "Zou-He with specified density"
+    - type: periodic
+      method: "native periodicity"
+
+validation:
+  - "Compare with analytical Poiseuille flow for channel validation"
+  - "Check mass conservation: total density should remain constant"
+  - "Verify Galilean invariance for moving problems"
+  - "Report lattice units AND physical units in results"
