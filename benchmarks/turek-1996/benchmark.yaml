@@ -1,0 +1,38 @@
+# Benchmark: Turek & Schäfer (1996)
+# "Benchmark Computations of Laminar Flow Around a Cylinder"
+# Flow Simulation with High-Performance Computers II, Notes on Numerical Fluid Mechanics, 52
+
+citation: "Turek, S. and Schäfer, M. (1996)"
+problem: "2D flow around a cylinder (DFG benchmark)"
+type: incompressible
+regime: laminar
+
+cases:
+  "2D-1":
+    description: "Steady flow around cylinder, Re=20"
+    reynolds_number: 20
+    reference_values:
+      drag_coefficient: 5.5795
+      lift_coefficient: 0.0106
+      pressure_drop: 0.1174
+    tolerance: 0.01
+
+  "2D-2":
+    description: "Unsteady flow around cylinder, Re=100"
+    reynolds_number: 100
+    reference_values:
+      drag_coefficient:
+        min: 3.22
+        max: 3.24
+        mean: 3.23
+      lift_coefficient:
+        amplitude: 0.01
+      strouhal_number: 0.295
+    tolerance: 0.02
+
+geometry:
+  channel_length: 2.2
+  channel_height: 0.41
+  cylinder_center: [0.2, 0.2]
+  cylinder_diameter: 0.1
+  units: m

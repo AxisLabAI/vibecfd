@@ -1,0 +1,48 @@
+# VibeCFD Workflow: Parameter Sweep
+# Run multiple cases varying one or more parameters.
+
+name: "Parameter Sweep"
+description: "Systematic exploration of parameter space"
+
+steps:
+  - id: generate-matrix
+    action: configure-solver
+    config:
+      sweep:
+        # Agent fills these from the case YAML
+        parameter: "flow_conditions.reynolds_number"
+        values: []  # e.g., [100, 400, 1000, 3200, 5000]
+      base_case: ""  # Path to base case YAML
+
+  - id: run-all
+    action: parameter-sweep
+    config:
+      parallel: true
+      max_concurrent: 4
+      mesh_per_case: false  # Reuse mesh if geometry unchanged
+    depends_on: [generate-matrix]
+    on_failure: skip  # Continue sweep even if one case fails
+
+  - id: collect-results
+    action: post-process
+    config:
+      aggregate: true
+      figures:
+        - type: line_plot
+          x_axis: "{sweep.parameter}"
+          y_axis: [Cd, Cl, Nu]  # Auto-detected from case type
+        - type: table
+          columns: ["{sweep.parameter}", Cd, Cl, max_residual, converged]
+      export_format: pdf
+    depends_on: [run-all]
+
+  - id: report
+    action: export-report
+    config:
+      template: templates/latex/article.tex
+      compile_pdf: true
+    depends_on: [collect-results]
+
+settings:
+  parallel_steps: true
+  log_level: info

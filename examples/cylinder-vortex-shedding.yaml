@@ -1,0 +1,80 @@
+# VibeCFD Example: Flow Around a Cylinder (Vortex Shedding)
+# Turek benchmark 2D-2, Re=100
+
+name: "Cylinder Vortex Shedding"
+description: "2D unsteady laminar flow around a circular cylinder in a channel. Karman vortex street develops at Re=100."
+type: incompressible
+regime: laminar
+dimensionality: "2D"
+
+geometry:
+  source: custom-script
+  dimensions: [2.2, 0.41, 0.01]
+  units: m
+  features:
+    cylinder:
+      center: [0.2, 0.2]
+      diameter: 0.1
+
+flow_conditions:
+  reynolds_number: 100
+  reference_velocity: 0.3  # m/s (mean inlet)
+  reference_length: 0.1    # m (cylinder diameter)
+  kinematic_viscosity: 3.0e-4
+  density: 1.0
+
+solver:
+  engine: openfoam
+  name: pimpleFoam
+  type: transient
+  turbulence: laminar
+  end_time: 8.0
+  timestep: 0.0005
+  write_interval: 0.1
+  max_courant: 0.8
+
+mesh:
+  generator: snappyHexMesh
+  base_cells: [220, 41, 1]
+  grading: boundary-layer
+  refinement_levels: [50000, 100000, 200000]
+  boundary_layer:
+    first_cell_height: 0.001
+    growth_ratio: 1.2
+    layers: 8
+
+boundary_conditions:
+  inlet:
+    type: inlet
+    velocity: "parabolic profile, U_max=0.45 m/s"
+    pressure: zeroGradient
+  outlet:
+    type: outlet
+    velocity: zeroGradient
+    pressure: 0
+  cylinder:
+    type: wall
+  topAndBottom:
+    type: wall
+  frontAndBack:
+    type: empty
+
+validation:
+  benchmark: turek-1996
+  data_source: "Turek & Schäfer (1996)"
+  compare:
+    - quantity: "drag coefficient (mean)"
+      expected: 3.23
+      tolerance: 0.02
+    - quantity: "Strouhal number"
+      expected: 0.295
+      tolerance: 0.02
+
+export:
+  format: latex
+  template: templates/latex/article.tex
+  figures:
+    - vorticity_contour
+    - drag_lift_history
+    - strouhal_fft
+    - validation_comparison

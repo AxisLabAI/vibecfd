@@ -1,0 +1,136 @@
+# OpenFOAM Adapter
+# Maps VibeCFD case schema to OpenFOAM directory structure and commands.
+# Agents use this to generate case files and run simulations.
+
+adapter:
+  name: openfoam
+  version: "v2412"
+  description: "Adapter for OpenFOAM finite volume solvers"
+
+  # ─── Environment requirements ──────────────────────────────
+  environment:
+    check_command: "simpleFoam -help 2>&1 | head -1"
+    expected_pattern: "Usage: simpleFoam"
+    install_guide: "https://openfoam.org/download/"
+    env_vars:
+      - name: WM_PROJECT_DIR
+        required: true
+        description: "OpenFOAM installation root"
+      - name: FOAM_USER_APPBIN
+        required: false
+
+  # ─── Directory structure ───────────────────────────────────
+  case_structure:
+    root: "{case_name}"
+    directories:
+      - "0/"          # Initial/boundary conditions
+      - "constant/"   # Physical properties, mesh
+      - "system/"     # Solver controls
+    generated_files:
+      system/controlDict:
+        template: "skills/openfoam/templates/controlDict.j2"
+      system/fvSchemes:
+        template: "skills/openfoam/templates/fvSchemes.j2"
+      system/fvSolution:
+        template: "skills/openfoam/templates/fvSolution.j2"
+      system/blockMeshDict:
+        template: "skills/openfoam/templates/blockMeshDict.j2"
+        condition: "mesh.generator == 'blockMesh'"
+      constant/transportProperties:
+        template: "skills/openfoam/templates/transportProperties.j2"
+      "0/U":
+        template: "skills/openfoam/templates/U.j2"
+      "0/p":
+        template: "skills/openfoam/templates/p.j2"
+
+  # ─── Command pipeline ─────────────────────────────────────
+  commands:
+    mesh:
+      blockMesh:
+        cmd: "blockMesh"
+        cwd: "{case_dir}"
+        check: "blockMesh exits 0"
+      snappyHexMesh:
+        cmd: "snappyHexMesh -overwrite"
+        cwd: "{case_dir}"
+        prerequisites: ["blockMesh"]
+      checkMesh:
+        cmd: "checkMesh -latestTime"
+        cwd: "{case_dir}"
+        parse_output:
+          - pattern: "Mesh OK"
+            result: pass
+          - pattern: "Failed"
+            result: fail
+            action: "Report failed checks, suggest mesh fixes"
+
+    decompose:
+      cmd: "decomposePar -force"
+      cwd: "{case_dir}"
+      condition: "parallel == true"
+
+    solve:
+      serial:
+        cmd: "{solver_name}"
+        cwd: "{case_dir}"
+      parallel:
+        cmd: "mpirun -np {nproc} {solver_name} -parallel"
+        cwd: "{case_dir}"
+
+    reconstruct:
+      cmd: "reconstructPar -latestTime"
+      cwd: "{case_dir}"
+      condition: "parallel == true"
+
+    post:
+      foamToVTK:
+        cmd: "foamToVTK -latestTime"
+        cwd: "{case_dir}"
+      sample:
+        cmd: "postProcess -func 'singleGraph' -latestTime"
+        cwd: "{case_dir}"
+
+  # ─── Log parsing rules ────────────────────────────────────
+  log_parsing:
+    residuals:
+      pattern: 'Solving for {field}.*Final residual = ({float})'
+      fields: [Ux, Uy, Uz, p, k, omega, epsilon]
+    continuity:
+      pattern: 'time step continuity errors.*sum local = ({float})'
+      threshold: 1.0e-6
+    courant:
+      pattern: 'Courant Number mean: ({float}) max: ({float})'
+    execution_time:
+      pattern: 'ExecutionTime = ({float}) s'
+    convergence_detected:
+      condition: "all residuals < convergence_criteria.steady_state.residuals for 50 consecutive iterations"
+      action: "stop simulation, report converged"
+    divergence_detected:
+      condition: "any residual > 1e6 or NaN detected"
+      action: "stop simulation, diagnose: check mesh quality, reduce relaxation factors, check BCs"
+
+  # ─── Solver → schema mapping ───────────────────────────────
+  solver_map:
+    incompressible:
+      laminar:
+        steady: simpleFoam
+        transient: icoFoam
+      turbulent:
+        steady: simpleFoam
+        transient: pimpleFoam
+    compressible:
+      laminar:
+        steady: rhoSimpleFoam
+        transient: rhoPimpleFoam
+      turbulent:
+        steady: rhoSimpleFoam
+        transient: rhoPimpleFoam
+    multiphase:
+      vof:
+        transient: interFoam
+      vof_dynamic:
+        transient: interDyMFoam
+    heat_transfer:
+      buoyancy:
+        transient: buoyantPimpleFoam
+        steady: buoyantSimpleFoam

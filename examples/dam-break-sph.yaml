@@ -1,0 +1,68 @@
+# VibeCFD Example: 2D Dam Break (SPH)
+# Martin & Moyce (1952) experimental benchmark
+
+name: "Dam Break (SPH)"
+description: "2D dam break on rigid horizontal plane using Smoothed Particle Hydrodynamics. Water column collapses under gravity."
+type: multiphase
+regime: laminar
+dimensionality: "2D"
+
+geometry:
+  source: box
+  dimensions: [0.4, 0.2, 0.01]
+  units: m
+  features:
+    water_column:
+      x_range: [0, 0.05715]
+      y_range: [0, 0.11430]
+
+flow_conditions:
+  density: 1000.0  # kg/m^3 (water)
+  kinematic_viscosity: 1.0e-6
+  gravity: [0, -9.81, 0]
+  reference_velocity: 1.0  # approximate front speed
+  reference_length: 0.05715
+
+solver:
+  engine: dualsphysics
+  name: DualSPHysics
+  type: transient
+  turbulence: laminar
+  end_time: 0.6
+  timestep: auto  # CFL-controlled
+  write_interval: 0.01
+
+mesh:
+  generator: custom  # SPH uses particle spacing, not mesh
+  particle_spacing: 0.001  # dp = 1mm
+  smoothing_ratio: 1.2     # h/dp
+  refinement_levels: [0.002, 0.001, 0.0005]  # dp for mesh study
+
+boundary_conditions:
+  bottom:
+    type: wall
+    method: dynamic-boundary-particles
+  left:
+    type: wall
+    method: dynamic-boundary-particles
+  right:
+    type: outlet
+    method: open-boundary
+
+validation:
+  benchmark: martin-moyce-1952
+  data_source: "Martin & Moyce (1952)"
+  compare:
+    - quantity: "surge front position vs time"
+      tolerance: 0.05
+    - quantity: "column height vs time"
+      tolerance: 0.05
+
+export:
+  format: latex
+  template: templates/latex/report.tex
+  figures:
+    - particle_snapshots
+    - front_position_vs_time
+    - column_height_vs_time
+    - validation_comparison

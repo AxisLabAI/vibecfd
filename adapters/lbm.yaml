@@ -1,0 +1,50 @@
+# LBM Adapter (Palabos)
+# Maps VibeCFD case schema to Palabos input parameters.
+
+adapter:
+  name: palabos
+  version: "v2.3"
+  description: "Adapter for Palabos Lattice Boltzmann solver"
+
+  environment:
+    check_command: "which palabos 2>/dev/null || ls $PALABOS_ROOT/lib/libplb.a 2>/dev/null"
+    install_guide: "https://palabos.unige.ch/get-started/"
+    env_vars:
+      - name: PALABOS_ROOT
+        required: true
+
+  unit_conversion:
+    description: "LBM uses lattice units — agents MUST convert physical → lattice"
+    rules:
+      - "Choose reference length L_ref (lattice points across characteristic length)"
+      - "dx = L_physical / L_ref"
+      - "dt = (tau - 0.5) / 3 * dx^2 / nu_physical"
+      - "Velocity: u_lb = u_physical * dt / dx (must satisfy Ma < 0.3)"
+      - "Force: F_lb = F_physical * dt^2 / (rho * dx^4)"
+    validation:
+      - check: "u_lb < 0.1"
+        description: "Compressibility error < 1%"
+      - check: "tau > 0.5001"
+        description: "Stability requirement"
+      - check: "L_ref > 10"
+        description: "Minimum resolution"
+
+  commands:
+    compile:
+      cmd: "make -j$(nproc)"
+      cwd: "{case_dir}"
+    run:
+      serial:
+        cmd: "./{executable}"
+        cwd: "{case_dir}"
+      parallel:
+        cmd: "mpirun -np {nproc} ./{executable}"
+        cwd: "{case_dir}"
+
+  log_parsing:
+    iteration:
+      pattern: 'step ({int})'
+    energy:
+      pattern: 'average energy: ({float})'
+    convergence:
+      condition: "relative change in average energy < 1e-6 for 1000 steps"

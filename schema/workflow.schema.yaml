@@ -1,0 +1,84 @@
+# VibeCFD Workflow Schema v1
+# Defines the execution pipeline for a simulation study.
+# Agents follow this schema to orchestrate multi-step research.
+
+_version: "1.0"
+
+workflow:
+  name:
+    type: string
+    required: true
+
+  description:
+    type: string
+    required: true
+
+  # Steps execute sequentially unless parallel=true
+  steps:
+    type: array
+    required: true
+    items:
+      id:
+        type: string
+        required: true
+        description: "Unique step identifier (used for depends_on references)"
+
+      action:
+        type: enum
+        required: true
+        values:
+          - discover          # Literature mining → problem candidates
+          - setup-geometry    # Create/import geometry
+          - generate-mesh     # Mesh generation + quality check
+          - configure-solver  # Generate solver config files
+          - run-simulation    # Execute solver
+          - monitor           # Watch convergence in real-time
+          - post-process      # Extract data, generate figures
+          - validate          # Compare with benchmark data
+          - mesh-study        # Run mesh independence study (auto 3 levels)
+          - export-report     # Generate LaTeX/markdown report
+          - parameter-sweep   # Run multiple cases varying a parameter
+
+      config:
+        type: object
+        description: "Action-specific configuration (varies by action type)"
+
+      depends_on:
+        type: array[string]
+        description: "Step IDs that must complete before this step starts"
+        default: []
+
+      on_failure:
+        type: enum
+        values: [stop, retry, skip, fallback]
+        default: stop
+        description: "What to do if this step fails"
+
+      retry:
+        type: object
+        fields:
+          max_attempts:
+            type: int
+            default: 3
+          backoff:
+            type: enum
+            values: [none, linear, exponential]
+            default: linear
+
+      outputs:
+        type: array[string]
+        description: "Named outputs this step produces (referenced by later steps)"
+
+  # Global settings
+  settings:
+    parallel_steps:
+      type: boolean
+      default: false
+      description: "Allow independent steps to run in parallel"
+    working_directory:
+      type: string
+      default: "./cases"
+    log_level:
+      type: enum
+      values: [debug, info, warn, error]
+      default: info

@@ -1,0 +1,47 @@
+# SPH Adapter (DualSPHysics)
+# Maps VibeCFD case schema to DualSPHysics XML configuration.
+
+adapter:
+  name: dualsphysics
+  version: "v5.2"
+  description: "Adapter for DualSPHysics Smoothed Particle Hydrodynamics solver"
+
+  environment:
+    check_command: "which DualSPHysics5.2_linux64 2>/dev/null || which DualSPHysics5.2CPU_linux64"
+    install_guide: "https://dual.sphysics.org/downloads/"
+    env_vars:
+      - name: DSPH_HOME
+        required: true
+
+  case_structure:
+    root: "{case_name}"
+    generated_files:
+      "{case_name}_Def.xml":
+        description: "Case definition XML"
+      "run.sh":
+        description: "Execution script (GenCase → DualSPHysics → post)"
+
+  commands:
+    gencase:
+      cmd: "GenCase {case_name}_Def {case_name}_out/{case_name} -save:all"
+      cwd: "{case_dir}"
+    solve_gpu:
+      cmd: "DualSPHysics5.2_linux64 {case_name}_out/{case_name} {case_name}_out -dirdataout data -svres"
+      cwd: "{case_dir}"
+    solve_cpu:
+      cmd: "DualSPHysics5.2CPU_linux64 {case_name}_out/{case_name} {case_name}_out -dirdataout data -svres"
+      cwd: "{case_dir}"
+    post_partvtk:
+      cmd: "PartVTK -dirin {case_name}_out/data -savevtk {case_name}_out/PartFluid -onlytype:-all,+fluid"
+      cwd: "{case_dir}"
+    post_measuretool:
+      cmd: "MeasureTool -dirin {case_name}_out/data -points {points_file} -savevtk {case_name}_out/MeasurePoints -savecsv {case_name}_out/MeasurePoints"
+      cwd: "{case_dir}"
+
+  log_parsing:
+    step:
+      pattern: 'Part_({int}).*dt:({float}).*t:({float})'
+    particles:
+      pattern: 'Particles: ({int})'
+    runtime:
+      pattern: 'Total runtime: ({float})'

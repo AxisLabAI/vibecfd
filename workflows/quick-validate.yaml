@@ -1,0 +1,40 @@
+# VibeCFD Workflow: Quick Validation Run
+# Single-mesh run against a known benchmark. Fast turnaround.
+
+name: "Quick Validation"
+description: "Run a single case and compare with benchmark data"
+
+steps:
+  - id: setup
+    action: configure-solver
+    config:
+      validate_only: false
+
+  - id: mesh
+    action: generate-mesh
+    config:
+      level: medium
+      run_checkMesh: true
+    depends_on: [setup]
+
+  - id: solve
+    action: run-simulation
+    depends_on: [mesh]
+    on_failure: retry
+
+  - id: validate
+    action: validate
+    config:
+      generate_comparison_plot: true
+    depends_on: [solve]
+
+  - id: report
+    action: export-report
+    config:
+      template: templates/latex/report.tex
+      compile_pdf: true
+    depends_on: [validate]
+
+settings:
+  parallel_steps: false
+  log_level: info

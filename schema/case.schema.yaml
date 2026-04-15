@@ -1,0 +1,202 @@
+# VibeCFD Case Schema v1
+# Every simulation case MUST conform to this schema.
+# Agents validate input against this before generating solver files.
+
+_version: "1.0"
+
+case:
+  # ─── Required fields ─────────────────────────────────────────
+  name:
+    type: string
+    required: true
+    description: "Human-readable case name"
+    example: "Lid-Driven Cavity Re=1000"
+
+  description:
+    type: string
+    required: true
+    description: "One-paragraph description of the physical problem"
+
+  type:
+    type: enum
+    required: true
+    values: [incompressible, compressible, multiphase, heat-transfer, combustion, mhd, fsi]
+
+  regime:
+    type: enum
+    required: true
+    values: [laminar, transitional, turbulent]
+
+  dimensionality:
+    type: enum
+    required: true
+    values: ["2D", "2D-axisymmetric", "3D"]
+    default: "2D"
+
+  # ─── Geometry ────────────────────────────────────────────────
+  geometry:
+    type: object
+    required: true
+    fields:
+      source:
+        type: enum
+        values: [box, cylinder, sphere, stl, step-file, custom-script]
+        required: true
+      dimensions:
+        type: array[float]
+        description: "Bounding box [Lx, Ly, Lz] in meters"
+      stl_file:
+        type: string
+        description: "Path to STL geometry (when source=stl)"
+      units:
+        type: enum
+        values: [m, mm, cm]
+        default: m
+
+  # ─── Flow conditions ─────────────────────────────────────────
+  flow_conditions:
+    type: object
+    required: true
+    fields:
+      reynolds_number:
+        type: float
+        description: "Re = U*L/nu"
+      reference_velocity:
+        type: float
+        units: "m/s"
+      reference_length:
+        type: float
+        units: "m"
+      kinematic_viscosity:
+        type: float
+        units: "m^2/s"
+      density:
+        type: float
+        units: "kg/m^3"
+        default: 1.0
+      # Optional for compressible / thermal
+      temperature:
+        type: float
+        units: "K"
+      mach_number:
+        type: float
+      prandtl_number:
+        type: float
+
+  # ─── Solver ──────────────────────────────────────────────────
+  solver:
+    type: object
+    required: true
+    fields:
+      engine:
+        type: enum
+        values: [openfoam, palabos, dualSPHysics, fenics, custom]
+        required: true
+      name:
+        type: string
+        description: "Specific solver name (e.g., icoFoam, simpleFoam)"
+      type:
+        type: enum
+        values: [steady, transient]
+        required: true
+      turbulence:
+        type: string
+        description: "Turbulence model name or 'laminar'"
+        default: laminar
+      end_time:
+        type: float
+        units: "s"
+      timestep:
+        type: float
+        units: "s"
+      write_interval:
+        type: float
+        units: "s"
+      max_courant:
+        type: float
+        default: 1.0
+
+  # ─── Mesh ────────────────────────────────────────────────────
+  mesh:
+    type: object
+    required: true
+    fields:
+      generator:
+        type: enum
+        values: [blockMesh, snappyHexMesh, gmsh, cfMesh, custom]
+        required: true
+      base_cells:
+        type: array[int]
+        description: "[Nx, Ny, Nz]"
+      grading:
+        type: enum
+        values: [uniform, boundary-layer, adaptive]
+        default: uniform
+      refinement_levels:
+        type: array[int]
+        description: "Cell counts for mesh independence study"
+      boundary_layer:
+        type: object
+        fields:
+          first_cell_height:
+            type: float
+            units: "m"
+          growth_ratio:
+            type: float
+            default: 1.2
+          layers:
+            type: int
+            default: 10
+
+  # ─── Boundary conditions ─────────────────────────────────────
+  boundary_conditions:
+    type: map
+    required: true
+    description: "Map of patch_name → BC definition"
+    value_schema:
+      type:
+        type: enum
+        values: [inlet, outlet, wall, movingWall, symmetry, periodic, freestream, empty]
+        required: true
+      velocity:
+        type: array[float] | string
+      pressure:
+        type: float | string
+      temperature:
+        type: float | string
+
+  # ─── Validation ──────────────────────────────────────────────
+  validation:
+    type: object
+    required: false
+    fields:
+      benchmark:
+        type: string
+        description: "Benchmark ID from benchmarks/ directory"
+      data_source:
+        type: string
+        description: "Citation for reference data"
+      compare:
+        type: array
+        items:
+          quantity:
+            type: string
+          tolerance:
+            type: float
+            description: "Maximum acceptable relative error"
+
+  # ─── Export ──────────────────────────────────────────────────
+  export:
+    type: object
+    required: false
+    fields:
+      format:
+        type: enum
+        values: [latex, markdown, html, json]
+        default: latex
+      template:
+        type: string
+        description: "Path to template file"
+      figures:
+        type: array[string]
+        description: "List of figure types to generate"

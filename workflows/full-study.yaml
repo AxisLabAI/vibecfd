@@ -1,0 +1,121 @@
+# VibeCFD Workflow: Full Research Study
+# End-to-end pipeline from problem definition to publication-ready report.
+
+name: "Full CFD Research Study"
+description: "Complete simulation study with mesh independence, validation, and LaTeX report"
+
+steps:
+  - id: validate-case
+    action: configure-solver
+    config:
+      validate_only: true
+      check_schema: true
+      check_dependencies: true
+    on_failure: stop
+
+  - id: mesh-coarse
+    action: generate-mesh
+    config:
+      level: coarse
+      run_checkMesh: true
+    depends_on: [validate-case]
+    on_failure: stop
+
+  - id: mesh-medium
+    action: generate-mesh
+    config:
+      level: medium
+      run_checkMesh: true
+    depends_on: [validate-case]
+    on_failure: stop
+
+  - id: mesh-fine
+    action: generate-mesh
+    config:
+      level: fine
+      run_checkMesh: true
+    depends_on: [validate-case]
+    on_failure: stop
+
+  - id: solve-coarse
+    action: run-simulation
+    config:
+      mesh_level: coarse
+    depends_on: [mesh-coarse]
+    on_failure: retry
+    retry:
+      max_attempts: 2
+
+  - id: solve-medium
+    action: run-simulation
+    config:
+      mesh_level: medium
+    depends_on: [mesh-medium]
+    on_failure: retry
+
+  - id: solve-fine
+    action: run-simulation
+    config:
+      mesh_level: fine
+    depends_on: [mesh-fine]
+    on_failure: retry
+
+  - id: mesh-independence
+    action: mesh-study
+    config:
+      method: GCI  # Grid Convergence Index (Roache, 1994)
+      refinement_ratio: 1.5
+      safety_factor: 1.25
+      report_format: table
+    depends_on: [solve-coarse, solve-medium, solve-fine]
+    outputs: [gci_table, extrapolated_value, is_converged]
+
+  - id: validate
+    action: validate
+    config:
+      use_mesh_level: fine
+      benchmark: auto  # Auto-detect from case type
+      interpolation: linear
+      generate_comparison_plot: true
+    depends_on: [solve-fine]
+    outputs: [validation_plot, max_error, passed]
+
+  - id: post-process
+    action: post-process
+    config:
+      figures:
+        - type: contour
+          field: U
+          component: magnitude
+          timestep: latest
+        - type: contour
+          field: p
+          timestep: latest
+        - type: streamlines
+          field: U
+          timestep: latest
+          seed_points: auto
+        - type: line_plot
+          source: centerline
+          fields: [Ux, Uy, p]
+      export_format: pdf
+      dpi: 300
+    depends_on: [solve-fine]
+    outputs: [figures]
+
+  - id: export-report
+    action: export-report
+    config:
+      template: templates/latex/article.tex
+      include:
+        - mesh_independence: "{mesh-independence.gci_table}"
+        - validation: "{validate.validation_plot}"
+        - figures: "{post-process.figures}"
+      compile_pdf: true
+    depends_on: [mesh-independence, validate, post-process]
+    outputs: [report_pdf, report_tex]
+
+settings:
+  parallel_steps: true
+  working_directory: "./cases/{case_name}"
+  log_level: info

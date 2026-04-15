@@ -1,0 +1,75 @@
+# VibeCFD Example: Natural Convection in a Square Cavity
+# de Vahl Davis (1983) benchmark
+
+name: "Natural Convection Square Cavity"
+description: "Buoyancy-driven flow in a differentially heated square cavity. Left wall hot, right wall cold. Ra=1e6."
+type: heat-transfer
+regime: laminar
+dimensionality: "2D"
+
+geometry:
+  source: box
+  dimensions: [1.0, 1.0, 0.01]
+  units: m
+
+flow_conditions:
+  rayleigh_number: 1.0e6
+  prandtl_number: 0.71
+  temperature_hot: 305.15  # K
+  temperature_cold: 295.15  # K
+  reference_temperature: 300.15  # K
+  density: 1.225
+  kinematic_viscosity: 1.516e-5
+  thermal_diffusivity: 2.136e-5
+  beta: 3.33e-3  # thermal expansion coefficient
+
+solver:
+  engine: openfoam
+  name: buoyantPimpleFoam
+  type: transient
+  turbulence: laminar
+  end_time: 200.0
+  timestep: 0.01
+  write_interval: 10.0
+
+mesh:
+  generator: blockMesh
+  base_cells: [100, 100, 1]
+  grading: boundary-layer
+  refinement_levels: [50, 100, 200]  # cells per direction
+  boundary_layer:
+    first_cell_height: 0.002
+    growth_ratio: 1.1
+    layers: 12
+
+boundary_conditions:
+  leftWall:
+    type: wall
+    temperature: 305.15
+  rightWall:
+    type: wall
+    temperature: 295.15
+  topAndBottom:
+    type: wall
+    temperature: zeroGradient
+  frontAndBack:
+    type: empty
+
+validation:
+  data_source: "de Vahl Davis (1983), International Journal for Numerical Methods in Fluids"
+  compare:
+    - quantity: "average Nusselt number on hot wall"
+      expected: 8.800
+      tolerance: 0.02
+    - quantity: "maximum horizontal velocity at y=0.5"
+      expected: 64.63
+      tolerance: 0.03
+
+export:
+  format: latex
+  template: templates/latex/article.tex
+  figures:
+    - temperature_contour
+    - streamlines
+    - nusselt_distribution
+    - centerline_velocity_profiles

@@ -1,0 +1,77 @@
+# VibeCFD Example: Backward-Facing Step
+# Classic separated flow benchmark
+
+name: "Backward-Facing Step"
+description: "Turbulent flow over a backward-facing step. Expansion ratio 1.2, Re=44000 based on step height."
+type: incompressible
+regime: turbulent
+dimensionality: "2D"
+
+geometry:
+  source: box
+  dimensions: [0.5, 0.06, 0.01]
+  units: m
+  features:
+    step:
+      height: 0.01  # m
+      location: 0.05  # m from inlet
+
+flow_conditions:
+  reynolds_number: 44000
+  reference_velocity: 44.0
+  reference_length: 0.01  # step height
+  kinematic_viscosity: 1.0e-5
+  density: 1.225
+
+solver:
+  engine: openfoam
+  name: simpleFoam
+  type: steady
+  turbulence: kOmegaSST
+  end_time: 5000  # iterations
+  write_interval: 500
+
+mesh:
+  generator: blockMesh
+  base_cells: [500, 60, 1]
+  grading: boundary-layer
+  refinement_levels: [15000, 30000, 60000]
+  boundary_layer:
+    first_cell_height: 0.00002
+    growth_ratio: 1.15
+    layers: 15
+
+boundary_conditions:
+  inlet:
+    type: inlet
+    velocity: [44.0, 0, 0]
+    turbulence_intensity: 0.05
+    turbulent_length_scale: 0.007
+  outlet:
+    type: outlet
+    velocity: zeroGradient
+    pressure: 0
+  step:
+    type: wall
+  topAndBottom:
+    type: wall
+  frontAndBack:
+    type: empty
+
+validation:
+  data_source: "Driver & Seegmiller (1985), AIAA Journal 23(12)"
+  compare:
+    - quantity: "reattachment length"
+      expected: "6.26 step heights"
+      tolerance: 0.05
+    - quantity: "skin friction coefficient"
+      tolerance: 0.10
+
+export:
+  format: latex
+  template: templates/latex/article.tex
+  figures:
+    - velocity_contour
+    - streamlines
+    - skin_friction
+    - reattachment_comparison

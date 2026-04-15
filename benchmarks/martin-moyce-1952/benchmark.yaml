@@ -1,0 +1,45 @@
+# Benchmark: Martin & Moyce (1952)
+# "An Experimental Study of the Collapse of Liquid Columns on a Rigid Horizontal Plane"
+# Philosophical Transactions of the Royal Society A, 244(882), 312-324
+
+citation: "Martin, J.C. and Moyce, W.J. (1952)"
+doi: "10.1098/rsta.1952.0006"
+problem: "2D dam break on rigid horizontal plane"
+type: multiphase
+regime: laminar
+
+parameters:
+  column_width: 0.05715  # m (2.25 inches)
+  column_height_ratios: [1.0, 2.0]  # H/a ratios
+  fluid: water
+
+validation_data:
+  # Non-dimensional front position vs time for H/a = 2
+  surge_front_Ha2:
+    description: "z/a vs t*sqrt(2g/a)"
+    columns: [t_star, z_over_a]
+    data:
+      - [0.0, 1.0]
+      - [0.5, 1.4]
+      - [1.0, 2.0]
+      - [1.5, 2.6]
+      - [2.0, 3.2]
+      - [2.5, 3.8]
+      - [3.0, 4.3]
+
+  # Non-dimensional column height vs time for H/a = 2
+  column_height_Ha2:
+    description: "h/a vs t*sqrt(2g/a)"
+    columns: [t_star, h_over_a]
+    data:
+      - [0.0, 2.0]
+      - [0.5, 1.8]
+      - [1.0, 1.5]
+      - [1.5, 1.2]
+      - [2.0, 0.9]
+      - [2.5, 0.7]
+      - [3.0, 0.5]
+
+acceptance_criteria:
+  max_relative_error: 0.05
+  note: "SPH results typically within 5% of experimental data"
